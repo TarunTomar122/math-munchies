@@ -35,6 +35,7 @@
             margin: 0.5rem auto; /* Adjusted margin */
             position: relative;
             overflow: hidden; /* Crucial for the fill effect */
+            transition: width 0.5s ease, height 0.5s ease;
         }
         .munchie-fill {
             background: linear-gradient(to top, #ff7f50, #ffa07a); /* Coral gradient for munchies */
@@ -73,6 +74,29 @@
             color: #ef4444; /* Red for incorrect text */
         }
 
+        /* Duck styles */
+        .duck {
+            display: none;
+            position: absolute;
+            right: -100px;
+            bottom: 20px;
+            font-size: 50px;
+            animation: duckWave 3s ease-in-out;
+        }
+
+        @keyframes duckWave {
+            0% { transform: translateX(0) rotate(0deg); right: -100px; }
+            25% { transform: translateX(-120px) rotate(-20deg); }
+            75% { transform: translateX(-120px) rotate(20deg); }
+            100% { transform: translateX(-120px) rotate(0deg); }
+        }
+
+        /* Bowl size transitions */
+        .bigger-bowl {
+            width: 160px;
+            height: 120px;
+        }
+
         /* Ensure buttons are easily tappable on mobile */
         .option-btn, #next-question-btn {
             -webkit-tap-highlight-color: transparent; /* Removes tap highlight on iOS */
@@ -87,10 +111,11 @@
             <p class="text-xl sm:text-2xl text-green-600">Score: <span id="score" class="font-bold">0</span></p>
         </div>
 
-        <div class="munchie-bowl-container mb-4 sm:mb-6">
+        <div class="munchie-bowl-container mb-4 sm:mb-6 relative">
             <div class="munchie-bowl">
                 <div class="munchie-fill" id="munchieFill"></div>
             </div>
+            <div class="duck" id="celebrationDuck">🦆</div>
             <p id="bowl-message" class="text-xs sm:text-sm text-yellow-700 italic mt-1 sm:mt-2">Let's fill the bowl with yummy munchies!</p>
         </div>
 
@@ -113,6 +138,7 @@
         </div>
 
         <button id="next-question-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-lg text-base sm:text-lg shadow-md transition duration-150 ease-in-out" style="display:none;">Next Question</button>
+        <button id="next-level-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-lg text-base sm:text-lg shadow-md transition duration-150 ease-in-out mt-4" style="display:none;">Next Level!</button>
     </div>
 
     <script>
@@ -131,12 +157,16 @@
         const nextQuestionBtn = document.getElementById('next-question-btn');
         const munchieFillElement = document.getElementById('munchieFill');
         const bowlMessageElement = document.getElementById('bowl-message');
+        const celebrationDuck = document.getElementById('celebrationDuck');
+        const nextLevelBtn = document.getElementById('next-level-btn');
+        const munchieBowl = document.querySelector('.munchie-bowl');
 
         // Game State
         let score = 0;
         let correctAnswer;
         let currentNum1, currentNum2;
-        const MAX_NUMBER = 15; // Maximum number for problems, adjustable for difficulty
+        let currentLevel = 1;
+        const MAX_NUMBER = 13; // Maximum number for problems
         const BOWL_CAPACITY = 10; // Score needed to "fill" the bowl for a special message
         let problemAnswered = false; // To prevent multiple clicks
 
@@ -163,32 +193,40 @@
             problemAnswered = false;
             currentNum1 = getRandomNumber(MAX_NUMBER);
             currentNum2 = getRandomNumber(MAX_NUMBER);
-            const isAddition = Math.random() < 0.6; // 60% chance of addition, 40% subtraction
-
-            if (isAddition) {
-                operationElement.textContent = '+';
+            
+            // Random operation selection (40% addition, 30% subtraction, 30% multiplication)
+            const operationRandom = Math.random();
+            let operation;
+            
+            if (operationRandom < 0.4) {
+                operation = '+';
                 correctAnswer = currentNum1 + currentNum2;
-            } else {
+            } else if (operationRandom < 0.7) {
                 // For subtraction, ensure num1 is greater than or equal to num2
-                // to avoid negative results for younger kids.
                 if (currentNum1 < currentNum2) {
-                    [currentNum1, currentNum2] = [currentNum2, currentNum1]; // Swap them
+                    [currentNum1, currentNum2] = [currentNum2, currentNum1];
                 }
-                operationElement.textContent = '-';
+                operation = '-';
                 correctAnswer = currentNum1 - currentNum2;
+            } else {
+                operation = '×';
+                correctAnswer = currentNum1 * currentNum2;
             }
 
+            operationElement.textContent = operation;
             num1Element.textContent = currentNum1;
             num2Element.textContent = currentNum2;
 
             generateOptions();
             feedbackTextElement.textContent = '';
-            feedbackTextElement.className = ''; // Reset feedback class
-            nextQuestionBtn.style.display = 'none'; // Hide next question button
+            feedbackTextElement.className = '';
+            nextQuestionBtn.style.display = 'none';
+            nextLevelBtn.style.display = 'none';
+            celebrationDuck.style.display = 'none';
+            
             optionButtons.forEach(btn => {
                 btn.disabled = false;
                 btn.classList.remove('correct-answer', 'incorrect-answer-selected', 'disabled-option');
-                // Reset button styles, Tailwind handles responsive sizing
                 btn.classList.add('bg-yellow-400', 'hover:bg-yellow-500');
             });
         }
@@ -272,10 +310,12 @@
             // Change bowl message based on fill level
             if (score === 0) {
                 bowlMessageElement.textContent = "Oh no! The bowl is empty. Let's add some munchies!";
-                munchieFillElement.style.backgroundColor = "#ffA07a"; // Lighter color when empty or low
+                munchieFillElement.style.backgroundColor = "#ffA07a";
             } else if (fillPercentage >= 100) {
                 bowlMessageElement.textContent = "Wow! The Munchie Bowl is FULL! You're a Math Whiz! 🌟";
-                munchieFillElement.style.background = "linear-gradient(to top, #ff6347, #ff4500)"; // Brighter when full
+                munchieFillElement.style.background = "linear-gradient(to top, #ff6347, #ff4500)";
+                celebrationDuck.style.display = 'block';
+                nextLevelBtn.style.display = 'inline-block';
             } else if (fillPercentage > 75) {
                 bowlMessageElement.textContent = "Almost full! You're doing great!";
                 munchieFillElement.style.background = "linear-gradient(to top, #ff7f50, #ffa07a)";
@@ -289,8 +329,21 @@
             }
         }
 
-        // Event Listener for the "Next Question" button
+        // Function to handle next level
+        function goToNextLevel() {
+            currentLevel++;
+            score = 0;
+            munchieBowl.classList.add('bigger-bowl');
+            nextLevelBtn.style.display = 'none';
+            celebrationDuck.style.display = 'none';
+            scoreElement.textContent = score;
+            updateMunchieBowl();
+            generateProblem();
+        }
+
+        // Event Listeners
         nextQuestionBtn.addEventListener('click', generateProblem);
+        nextLevelBtn.addEventListener('click', goToNextLevel);
 
         // --- Initialize Game ---
         // This function is called when the page loads
